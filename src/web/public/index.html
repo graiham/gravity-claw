@@ -215,7 +215,8 @@
         const statusDot = document.querySelector('.status-dot');
 
         function connect() {
-            ws = new WebSocket(`ws://${window.location.host}`);
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}`);
 
             ws.onopen = () => {
                 console.log('[WebChat] Connected to Gravity Claw');
@@ -324,7 +325,7 @@
             const cwd = prompt("Enter project directory path:", "/Users/grahambrooks/code/");
             if (!cwd) return;
             showTyping(`Requesting handoff for: ${cwd}`);
-            fetch(`http://${window.location.hostname}:8766/webhook`, {
+            fetch(`${window.location.protocol}//${window.location.hostname}:8766/webhook`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'handoff', project_path: cwd, objective: 'Take over PM role.' })
