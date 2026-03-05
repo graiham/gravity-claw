@@ -24,8 +24,8 @@ export class WebChannel implements IChannel {
         this.server = createServer(this.app);
         this.wss = new WebSocketServer({ server: this.server });
 
-        // Serve static files from src/web/public (will be mapped to dist/web/public)
-        this.app.use(express.static(path.join(__dirname, '../../src/web/public')));
+        // Serve static files from web/public (copied to dist/web/public during build)
+        this.app.use(express.static(path.join(__dirname, '../web/public')));
 
         this.wss.on('connection', (ws) => {
             console.log('[WebChat] Client connected');

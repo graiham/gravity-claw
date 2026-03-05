@@ -6,7 +6,7 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "build": "tsc",
+        "build": "tsc && mkdir -p dist/web && cp -r src/web/public dist/web/public",
         "start": "pkill -f 'node dist/index.js' || true && node dist/index.js"
     },
     "dependencies": {
