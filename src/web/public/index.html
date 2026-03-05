@@ -270,11 +270,29 @@
         function addMessage(text, sender) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${sender}`;
-            if (sender === 'bot') {
-                msgDiv.innerHTML = marked.parse(text);
-            } else {
-                msgDiv.textContent = text;
+
+            try {
+                if (sender === 'bot') {
+                    // Safety check for empty or malformed text
+                    if (!text) {
+                        msgDiv.textContent = "[Empty message]";
+                    } else {
+                        // Use a basic sanitize if marked fails
+                        try {
+                            msgDiv.innerHTML = marked.parse(text);
+                        } catch (parseErr) {
+                            console.error("Markdown parse error:", parseErr);
+                            msgDiv.textContent = text; // Fallback to raw text
+                        }
+                    }
+                } else {
+                    msgDiv.textContent = text;
+                }
+            } catch (err) {
+                console.error("Error adding message:", err);
+                msgDiv.textContent = "Error rendering message.";
             }
+
             chatContainer.insertBefore(msgDiv, typingIndicator);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -293,9 +311,9 @@
         function updateBudget(total) {
             const budgetText = document.getElementById('budget-text');
             const budgetFill = document.getElementById('budget-fill');
-            if (budgetText) budgetText.textContent = `Spent: £${total.toFixed(2)}`;
+            if (budgetText) budgetText.textContent = `Spent: £${(total || 0).toFixed(2)}`;
             if (budgetFill) {
-                const percentage = Math.min((total / 1.0) * 100, 100);
+                const percentage = Math.min(((total || 0) / 1.0) * 100, 100);
                 budgetFill.style.width = `${percentage}%`;
                 if (total > 0.8) budgetFill.style.background = '#dc3545';
                 else budgetFill.style.background = '#0084ff';
@@ -303,7 +321,7 @@
         }
 
         function updateBudgetFromText(text) {
-            if (text.includes('Total: £')) {
+            if (text && text.includes('Total: £')) {
                 const match = text.match(/Total: £([\d.]+)/);
                 if (match) updateBudget(parseFloat(match[1]));
             }
@@ -311,12 +329,17 @@
 
         function sendMessage() {
             const text = messageInput.value.trim();
-            if (text && ws.readyState === WebSocket.OPEN) {
+            if (text && ws && ws.readyState === WebSocket.OPEN) {
                 addMessage(text, 'user');
-                ws.send(text);
-                messageInput.value = '';
-                showTyping('Sending message...');
-            } else if (ws.readyState !== WebSocket.OPEN) {
+                try {
+                    ws.send(text);
+                    messageInput.value = '';
+                    showTyping('Sending message...');
+                } catch (sendErr) {
+                    console.error("WebSocket send error:", sendErr);
+                    addSystemMessage("Error: Could not send message.");
+                }
+            } else if (!ws || ws.readyState !== WebSocket.OPEN) {
                 alert("Connection is currently down. Reconnecting...");
             }
         }

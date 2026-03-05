@@ -22,10 +22,21 @@ const webPort = process.env.WEBCHAT_PORT ? parseInt(process.env.WEBCHAT_PORT) : 
 const webChannel = new WebChannel(webPort);
 webChannel.onMessage(async (msg) => {
     console.log(`[WebChat] Incoming message for ${msg.chat.id}: ${msg.text}`);
+
+    let isProcessing = true;
+    const keepAlive = setInterval(() => {
+        if (isProcessing) {
+            webChannel.sendStatus(msg.chat.id, "Gravity Claw is still working on your request... ⚙️");
+        }
+    }, 20000);
+
     try {
         const reply = await processMessage(msg.chat.id, msg.text, (status) => {
             webChannel.sendStatus(msg.chat.id, status);
         });
+
+        isProcessing = false;
+        clearInterval(keepAlive);
 
         // Broadcast stats update
         const { getUsageStats } = await import('./memory.js');
@@ -35,6 +46,8 @@ webChannel.onMessage(async (msg) => {
         console.log(`[WebChat] Replying to ${msg.chat.id}`);
         await webChannel.sendMessage(msg.chat.id, reply);
     } catch (err: any) {
+        isProcessing = false;
+        clearInterval(keepAlive);
         console.error("WebChat Error:", err);
         await webChannel.sendMessage(msg.chat.id, `Error: ${err.message}`);
     }

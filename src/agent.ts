@@ -30,7 +30,19 @@ const gemini = new GeminiProvider();
 registry.registerProvider(gemini);
 CoreTools.forEach(t => registry.registerTool(t));
 
-// Backward compatibility (to be refactored)
+/**
+ * Guardrail: Ensures an async operation doesn't hang the entire process.
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error(errorMessage)), timeoutMs);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+    });
+}
+
 const genAI = (gemini as any).genAI;
 const anthropic = config.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: config.ANTHROPIC_API_KEY }) : null;
 
@@ -928,7 +940,7 @@ export async function processMessage(chatId: string | number, userMessage: strin
             ]
         }]; // End toolsDesc
 
-        let result;
+        let result: any;
         let chat: any;
         let usedModel = "gemini-2.5-flash";
         let totalTokens = 0;
@@ -953,7 +965,7 @@ export async function processMessage(chatId: string | number, userMessage: strin
                 });
                 chat = model.startChat({ history });
                 console.log(`[DEBUG] Sending message to Gemini...`);
-                result = await chat.sendMessage(userMessage);
+                result = await withTimeout(chat.sendMessage(userMessage), 90000, "Gemini Response Timeout (90s)");
                 console.log(`[AGENT] Successfully connected to model: ${m}`);
                 lastErr = null;
                 break;
@@ -1054,7 +1066,7 @@ export async function processMessage(chatId: string | number, userMessage: strin
                         const toolName = parts.slice(2).join('_');
                         data = await mcpBridge.callTool(serverName, toolName, call.args);
                     } else {
-                        data = await executeTool(call.name, call.args);
+                        data = await withTimeout(executeTool(call.name, call.args), 300000, `Tool execution timed out (300s): ${call.name}`);
                     }
                 } catch (err: any) {
                     data = { error: err.message };
@@ -1072,7 +1084,7 @@ export async function processMessage(chatId: string | number, userMessage: strin
             let toolSuccess = false;
             while (!toolSuccess && toolRetryCount < 3) {
                 try {
-                    result = await chat.sendMessage(toolResults);
+                    result = await withTimeout(chat.sendMessage(toolResults), 60000, "Gemini Tool-Reply Timeout (60s)");
                     toolSuccess = true;
                 } catch (err: any) {
                     toolRetryCount++;
