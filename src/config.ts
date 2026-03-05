@@ -1,29 +1,23 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-function getEnv(name: string, required: boolean = true): string {
-    const value = process.env[name];
-    if (required && !value) {
-        throw new Error(`Environment variable ${name} is required.`);
-    }
-    return value || '';
-}
-
 export const config = {
-    TELEGRAM_BOT_TOKEN: getEnv('TELEGRAM_BOT_TOKEN'),
-    ALLOWED_USER_ID: parseInt(getEnv('ALLOWED_USER_ID')),
-    ANTHROPIC_API_KEY: getEnv('ANTHROPIC_API_KEY', false),
-    GEMINI_API_KEY: getEnv('GEMINI_API_KEY'),
-    TRELLO_API_KEY: getEnv('TRELLO_API_KEY', false), // Optional
-    TRELLO_API_TOKEN: getEnv('TRELLO_API_TOKEN', false), // Optional
-    NOTION_API_TOKEN: getEnv('NOTION_API_TOKEN', false),
-    GITHUB_API_TOKEN: getEnv('GITHUB_API_TOKEN', false),
-    OPENROUTER_API_KEY: getEnv('OPENROUTER_API_KEY', false),
-    OPENAI_API_KEY: getEnv('OPENAI_API_KEY', false),
-    ELEVENLABS_API_KEY: getEnv('ELEVENLABS_API_KEY', false),
-    ELEVENLABS_VOICE_ID: getEnv('ELEVENLABS_VOICE_ID', false),
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+    ALLOWED_USER_ID: Number(process.env.ALLOWED_USER_ID) || 0,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+    TRELLO_API_KEY: process.env.TRELLO_API_KEY || '',
+    TRELLO_API_TOKEN: process.env.TRELLO_API_TOKEN || '',
+    NOTION_API_TOKEN: process.env.NOTION_API_TOKEN || '',
+    GITHUB_API_TOKEN: process.env.GITHUB_API_TOKEN || '',
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+    SUPABASE_URL: process.env.SUPABASE_URL || '',
+    SUPABASE_KEY: process.env.SUPABASE_KEY || '',
+    ELEVENLABS_API_KEY: process.env.ELEVEN_API_KEY || '',
+    ELEVENLABS_VOICE_ID: process.env.ELEVEN_VOICE_ID || '',
+    VOICE_PROVIDER: process.env.VOICE_PROVIDER || 'google',
+    TRANSCRIPT_PROVIDER: process.env.TRANSCRIPT_PROVIDER || 'google',
+    GOOGLE_TTS_API_KEY: process.env.GOOGLE_TTS_API_KEY || process.env.GEMINI_API_KEY || '',
+    GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID || ''
 };
-
-if (isNaN(config.ALLOWED_USER_ID)) {
-    throw new Error('ALLOWED_USER_ID must be a number.');
-}

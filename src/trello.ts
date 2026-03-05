@@ -9,19 +9,22 @@ function getAuthParams() {
 export async function getBoards() {
     const response = await fetch(`${TRELLO_API_URL}/members/me/boards?${getAuthParams()}`);
     if (!response.ok) throw new Error(`Trello API Error: ${response.statusText}`);
-    return response.json();
+    const data = await response.json();
+    return data.map((b: any) => ({ id: b.id, name: b.name }));
 }
 
 export async function getListsOnBoard(boardId: string) {
     const response = await fetch(`${TRELLO_API_URL}/boards/${boardId}/lists?${getAuthParams()}`);
     if (!response.ok) throw new Error(`Trello API Error: ${response.statusText}`);
-    return response.json();
+    const data = await response.json();
+    return data.map((l: any) => ({ id: l.id, name: l.name, pos: l.pos, boardId: l.idBoard }));
 }
 
 export async function getCardsInList(listId: string) {
     const response = await fetch(`${TRELLO_API_URL}/lists/${listId}/cards?${getAuthParams()}`);
     if (!response.ok) throw new Error(`Trello API Error: ${response.statusText}`);
-    return response.json();
+    const data = await response.json();
+    return data.map((c: any) => ({ id: c.id, name: c.name, pos: c.pos, listId: c.idList, desc: c.desc.substring(0, 500) }));
 }
 
 export async function createCard(listId: string, name: string, desc: string) {
@@ -153,6 +156,14 @@ export async function reorderList(listId: string, pos: string | number) {
 
 export async function reorderCard(cardId: string, pos: string | number) {
     const response = await fetch(`${TRELLO_API_URL}/cards/${cardId}/pos?value=${pos}&${getAuthParams()}`, {
+        method: 'PUT'
+    });
+    if (!response.ok) throw new Error(`Trello API Error: ${response.statusText}`);
+    return response.json();
+}
+
+export async function moveBoardToWorkspace(boardId: string, workspaceId: string) {
+    const response = await fetch(`${TRELLO_API_URL}/boards/${boardId}/idOrganization?value=${workspaceId}&${getAuthParams()}`, {
         method: 'PUT'
     });
     if (!response.ok) throw new Error(`Trello API Error: ${response.statusText}`);

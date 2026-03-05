@@ -1,0 +1,16 @@
+name = "gravity-claw"
+main = "src/worker.ts"
+compatibility_date = "2023-12-01"
+
+[vars]
+# ENVs will be set in Cloudflare Dashboard
+ALLOWED_USER_ID = "8528760816"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gravity-claw-d1"
+database_id = "your-id-here"
+
+[[kv_namespaces]]
+binding = "MEMORY"
+id = "your-id-here"

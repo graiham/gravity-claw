@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  gravity-claw:
+    build: .
+    volumes:
+      - ./memory:/app/memory
+      - .env:/app/.env
+    restart: always
+    environment:
+      - DATABASE_PATH=/app/memory/gravity.db

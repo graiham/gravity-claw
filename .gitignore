@@ -2,5 +2,12 @@ node_modules
 dist
 .env
 gravity-claw.db
+memory.db
+.DS_Store
 *.log
 .agent
+_agent
+scripts/node_modules
+screenshots/
+tmp/
+.temp/

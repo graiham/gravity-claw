@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gravity Claw WebChat</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f0f2f5;
+        }
+
+        #chat-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: #0084ff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot {
+            align-self: flex-start;
+            background-color: white;
+            color: black;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.bot pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        .message.bot code {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        #input-container {
+            padding: 20px;
+            background-color: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        #send-button {
+            padding: 0 20px;
+            background-color: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        #typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background-color: transparent;
+            color: #888;
+            font-style: italic;
+            font-size: 14px;
+            padding: 0 16px;
+        }
+
+        /* Tray Interface */
+        #tray-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .tray-header {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        .tray-btn {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .tray-btn:hover {
+            background: #f8f9fa;
+            border-color: #0084ff;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            display: inline-block;
+        }
+
+        .budget-bar {
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .budget-fill {
+            height: 100%;
+            background: #0084ff;
+            width: 45%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="tray-overlay">
+        <div class="tray-header">
+            <span>Gravity Claw Controls</span>
+            <div class="status-dot"></div>
+        </div>
+        <button class="tray-btn" onclick="triggerHandoff()">
+            <span>🚀</span> Handoff Project (Current CWD)
+        </button>
+        <button class="tray-btn" onclick="toggleTalkMode()">
+            <span>🎤</span> Toggle Talk Mode
+        </button>
+        <button class="tray-btn" onclick="visualAudit()">
+            <span>📸</span> Visual UX Audit (:3000)
+        </button>
+        <div style="margin-top: 5px;">
+            <div style="display: flex; justify-content: space-between; color: #666; font-size: 12px;">
+                <span>Loop Budget</span>
+                <span id="budget-text">£0.45 / £1.00</span>
+            </div>
+            <div class="budget-bar">
+                <div class="budget-fill" id="budget-fill" style="width: 45%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <!-- Messages will appear here -->
+        <div id="typing-indicator">Gravity Claw is typing...</div>
+    </div>
+    <div id="input-container">
+        <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+        <button id="send-button">Send</button>
+    </div>
+
+    <script>
+        let ws;
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const statusDot = document.querySelector('.status-dot');
+
+        function connect() {
+            ws = new WebSocket(`ws://${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log('[WebChat] Connected to Gravity Claw');
+                if (statusDot) statusDot.style.background = '#28a745';
+                addSystemMessage("Connection established.");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'message') {
+                        clearTyping();
+                        addMessage(data.text, 'bot');
+                        updateBudgetFromText(data.text);
+                    } else if (data.type === 'status') {
+                        showTyping(data.text);
+                    } else if (data.type === 'usage') {
+                        updateBudget(data.totalCost);
+                    } else if (data.type === 'typing') {
+                        showTyping('Gravity Claw is typing...');
+                    }
+                } catch (e) {
+                    console.error("Parse error", e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.warn('[WebChat] Disconnected. Reconnecting...');
+                if (statusDot) statusDot.style.background = '#ffc107';
+                showTyping('Connection lost. Reconnecting...');
+                setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('[WebChat] Socket error:', err);
+                if (statusDot) statusDot.style.background = '#dc3545';
+                ws.close();
+            };
+        }
+
+        function showTyping(text) {
+            typingIndicator.style.display = 'block';
+            typingIndicator.textContent = text;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function clearTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function addMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+            if (sender === 'bot') {
+                msgDiv.innerHTML = marked.parse(text);
+            } else {
+                msgDiv.textContent = text;
+            }
+            chatContainer.insertBefore(msgDiv, typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addSystemMessage(text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.style.textAlign = 'center';
+            msgDiv.style.color = '#888';
+            msgDiv.style.fontSize = '11px';
+            msgDiv.style.margin = '10px 0';
+            msgDiv.textContent = text;
+            chatContainer.insertBefore(msgDiv, typingIndicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function updateBudget(total) {
+            const budgetText = document.getElementById('budget-text');
+            const budgetFill = document.getElementById('budget-fill');
+            if (budgetText) budgetText.textContent = `Spent: £${total.toFixed(2)}`;
+            if (budgetFill) {
+                const percentage = Math.min((total / 1.0) * 100, 100);
+                budgetFill.style.width = `${percentage}%`;
+                if (total > 0.8) budgetFill.style.background = '#dc3545';
+                else budgetFill.style.background = '#0084ff';
+            }
+        }
+
+        function updateBudgetFromText(text) {
+            if (text.includes('Total: £')) {
+                const match = text.match(/Total: £([\d.]+)/);
+                if (match) updateBudget(parseFloat(match[1]));
+            }
+        }
+
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (text && ws.readyState === WebSocket.OPEN) {
+                addMessage(text, 'user');
+                ws.send(text);
+                messageInput.value = '';
+                showTyping('Sending message...');
+            } else if (ws.readyState !== WebSocket.OPEN) {
+                alert("Connection is currently down. Reconnecting...");
+            }
+        }
+
+        function triggerHandoff() {
+            const cwd = prompt("Enter project directory path:", "/Users/grahambrooks/code/");
+            if (!cwd) return;
+            showTyping(`Requesting handoff for: ${cwd}`);
+            fetch(`http://${window.location.hostname}:8766/webhook`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'handoff', project_path: cwd, objective: 'Take over PM role.' })
+            });
+        }
+
+        function toggleTalkMode() {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send("Toggle Talk Mode");
+                addSystemMessage("Voice Mode toggled.");
+            }
+        }
+
+        function visualAudit() {
+            const url = prompt("URL to Audit:", "http://localhost:3000");
+            if (url && ws.readyState === WebSocket.OPEN) {
+                ws.send(`Take a screenshot of ${url} and perform a UX audit.`);
+                showTyping(`Browser is visiting ${url}...`);
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        connect();
+    </script>
+</body>
+
+</html>

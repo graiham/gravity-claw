@@ -1,7 +1,8 @@
 import { Bot, InputFile } from 'grammy';
 import { config } from './config.js';
-import { processMessage, isTalkMode } from './agent.js';
+import { processMessage, isTalkMode, compactHistory } from './agent.js';
 import { transcribeAudio, synthesizeSpeech } from './voice.js';
+import { recordUsage } from './memory.js';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -39,17 +40,30 @@ bot.on('message:voice', async (ctx) => {
             writer.on('error', (err) => reject(err));
         });
 
-        const transcription = await transcribeAudio(tempPath);
+        const transcriptionResult = await transcribeAudio(tempPath);
         // Clean up temp file
         fs.unlinkSync(tempPath);
 
-        await ctx.reply(`🎙 *Transcribed:* _${transcription}_`, { parse_mode: 'Markdown' });
+        // Record STT usage
+        recordUsage(0, transcriptionResult.costGbp);
 
-        const reply = await processMessage(ctx.chat.id, transcription);
+        await ctx.reply(`🎙 *Transcribed:* _${transcriptionResult.text}_`, { parse_mode: 'Markdown' });
+
+        const reply = await processMessage(ctx.chat.id, transcriptionResult.text);
         await handleReply(ctx, reply);
     } catch (error) {
         console.error('Voice Error:', error);
         await ctx.reply('Error processing voice message.');
+    }
+});
+
+bot.command('compact', async (ctx) => {
+    const statusMessage = await ctx.reply("Compacting history... 🧠✂️");
+    try {
+        const result = await compactHistory(ctx.chat.id);
+        await ctx.api.editMessageText(ctx.chat.id, statusMessage.message_id, result);
+    } catch (err: any) {
+        await ctx.api.editMessageText(ctx.chat.id, statusMessage.message_id, `Error: ${err.message}`);
     }
 });
 
@@ -68,8 +82,12 @@ async function handleReply(ctx: any, reply: string) {
     if (isTalkMode()) {
         try {
             await ctx.replyWithChatAction('record_voice');
-            const audioBuffer = await synthesizeSpeech(reply);
-            await ctx.replyWithVoice(new InputFile(audioBuffer));
+            const synthResult = await synthesizeSpeech(reply);
+
+            // Record TTS usage
+            recordUsage(0, synthResult.costGbp);
+
+            await ctx.replyWithVoice(new InputFile(synthResult.buffer));
         } catch (vErr) {
             console.error('Speech Synth Error:', vErr);
             await ctx.reply(reply + '\n\n(Voice synth failed, falling back to text)');
