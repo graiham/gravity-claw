@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIA — Agency Canvas v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="demo3.css">
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+  <div style="display:flex;align-items:center">
+    <div class="logo"><span>⬡</span> AIA <em>Agency Canvas</em></div>
+    <div class="badge">DEMO · v3</div>
+  </div>
+  <div class="tickers">
+    <div class="tk"><span class="tk-l">AIA Cost</span><span class="tk-v g" id="aiaV">£0.0000</span></div>
+    <span class="tk-sep">vs</span>
+    <div class="tk"><span class="tk-l">Agency</span><span class="tk-v s" id="taV">£0</span></div>
+    <span class="tk-sep">vs</span>
+    <div class="tk"><span class="tk-l">Freelance</span><span class="tk-v s" id="fvV">£0</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:15px">
+    <button class="btn-sec" style="font-size:10px;padding:4px 10px" onclick="fitToScreen()">⊕ Fit View</button>
+    <button class="btn-primary" id="downloadBtn" onclick="openDownload()" disabled style="background:#f59e0b;color:#111;font-weight:700">💰 Download All</button>
+    <div class="phase-txt" id="phaseLabel">Initialising…</div>
+  </div>
+</header>
+
+<!-- ── CANVAS ── -->
+<main class="canvas" id="canvas">
+  <svg id="svgLayer"></svg>
+  <div id="nodeLayer"></div>
+</main>
+
+<!-- ── BILLING LEDGER (slides from left) ── -->
+<aside class="ledger-panel" id="ledgerPanel">
+  <div class="ledger-header">
+    <div class="ledger-title">💰 Billing Ledger</div>
+    <button class="ledger-close" onclick="closeLedger()">✕</button>
+  </div>
+  <div class="ledger-hint">Click a row for thought-level breakdown. Billing nodes send time-tracking pulses at each deliverable.</div>
+  <div class="ledger-body">
+    <table class="ledger-table">
+      <thead><tr><th>Department</th><th style="text-align:right">Cost</th><th style="text-align:right">Tokens</th></tr></thead>
+      <tbody id="ledgerBody"><tr><td colspan="3" style="color:var(--muted);text-align:center;padding:16px">Awaiting activation…</td></tr></tbody>
+    </table>
+    <div class="ledger-total" id="ledgerTotal">TOTAL: £0.0000</div>
+  </div>
+</aside>
+
+<!-- ── CHAT / NOODLE PANEL (slides from right) ── -->
+<aside class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-header-avatar"><img id="chatHeaderImg" src="" alt=""></div>
+    <div>
+      <div class="chat-header-name">Agent Chat</div>
+      <div class="chat-header-role">Direct message</div>
+    </div>
+    <button class="chat-close" onclick="closeChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-row">
+    <textarea class="chat-input" id="chatInput" rows="1" placeholder="Message or ask a question…"></textarea>
+    <button class="chat-send" onclick="sendChatPanel()">Send</button>
+  </div>
+</aside>
+
+<!-- ── DESK VIEW MODAL ── -->
+<div class="desk-overlay" id="deskModal">
+  <div class="desk-modal">
+    <div class="desk-top">
+      <div class="desk-avatar"><img id="deskAgentImg" src="" alt=""></div>
+      <div>
+        <div style="font-size:14px;font-weight:600" id="deskAgentName">Agent</div>
+        <div style="font-size:10px;color:var(--muted)" id="deskAgentRole">Role</div>
+      </div>
+      <button class="desk-close" onclick="closeDesk()">✕</button>
+    </div>
+    <div class="desk-section">
+      <div class="desk-section-lbl">📥 Incoming Messages / Brief</div>
+      <div id="deskMessages"><em style="color:var(--muted);font-size:11px">Waiting for instructions…</em></div>
+    </div>
+    <div class="desk-section">
+      <div class="desk-section-lbl">📤 Latest Output</div>
+      <div class="desk-output" id="deskOutput">No output yet.</div>
+    </div>
+    <div class="desk-section">
+      <div class="desk-section-lbl">🗂 Generated Files</div>
+      <div id="deskFiles"><em style="color:var(--muted);font-size:11px">No files yet.</em></div>
+    </div>
+    <div class="desk-section">
+      <div class="desk-section-lbl">💭 Internal Monologue</div>
+      <div id="deskThinking"></div>
+    </div>
+    <div class="desk-section">
+      <div class="desk-section-lbl">🔄 Iteration History</div>
+      <div id="deskHistory"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROGRESS PILLS ── -->
+<div class="pills">
+  <div class="pill active" id="pill-0">① Scoping (free)</div>
+  <div class="pill" id="pill-1">② Team Working</div>
+  <div class="pill" id="pill-2">③ Amendments</div>
+  <div class="pill" id="pill-3">④ Delivered</div>
+</div>
+
+<!-- ── STATE LEGEND ── -->
+<div class="legend">
+  <div class="leg-row"><div class="leg-dot" style="background:rgba(255,255,255,.3)"></div>Grey = just instantiated</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#8b5cf6"></div>Purple = output ready to review</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#fff;box-shadow:0 0 5px #fff"></div>White = actively working</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#f97316"></div>Orange = needs client input</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#f59e0b"></div>Amber = amendment requested</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#10b981"></div>Green = complete ✓</div>
+</div>
+
+<!-- ── DELIVERY BANNER ── -->
+<div class="delivery" id="deliveryBanner">
+  <div class="dl-icon">📦</div>
+  <div>
+    <div class="dl-title">Package Delivered ✓</div>
+    <div class="dl-sub">5 departments · Multi-round amendments · Full website assets ready</div>
+  </div>
+  <div class="dl-actions">
+    <button class="btn-sec" onclick="location.href='canvas.html'">Back to Canvas</button>
+    <button class="btn-pri">⬇ Download Bundle</button>
+  </div>
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div class="statusbar">
+  <div class="glob-dot" id="globDot"></div>
+  <span id="globalStatus">Initialising agency…</span>
+  <span style="color:rgba(255,255,255,.15);margin:0 10px">│</span>
+  <span style="font-size:10px;color:var(--muted)">Click noodle = conversation history &nbsp;·&nbsp; Click card = agent desk view &nbsp;·&nbsp; Click 💰 = billing ledger</span>
+</div>
+
+<!-- ── BRIEF SUBMISSION MODAL ── -->
+<div class="brief-overlay" id="briefModal">
+  <div class="brief-modal">
+    <div class="brief-modal-title"><span>⬡</span> AIA Agency Brief</div>
+    <div class="brief-modal-sub">Tell us what you want to build. Our Studio Manager will analyze your brief and recruit the perfect specialist team.</div>
+    
+    <div class="brief-field">
+      <label class="brief-lbl">Client / Company Name</label>
+      <input type="text" class="brief-input" id="clientNameInput" placeholder="e.g. The Dough House or Airbnb Host #42">
+    </div>
+
+    <div class="brief-field">
+      <label class="brief-lbl">Project Brief</label>
+      <textarea class="brief-textarea" id="clientBriefInput" placeholder="Enter your requirements or an Airbnb URL..."></textarea>
+    </div>
+
+    <label class="brief-lbl">Quick Presets</label>
+    <div class="brief-presets">
+      <button class="preset-btn" onclick="document.getElementById('clientBriefInput').value='Enhance my Airbnb listing: https://www.airbnb.com/rooms/40230482?source_impression_id=p3_1773397463_P33VIYqfV8nF8NLH. Improve photos and scoring.'; document.getElementById('clientNameInput').value='Lucy\'s Loft';">
+        <strong>🏡 Airbnb Boost</strong>
+        Photo enhancement & IEO
+      </button>
+      <button class="preset-btn" onclick="document.getElementById('clientBriefInput').value='Build a SaaS marketing website for a developer tool. Dark mode, Next.js, Stripe.'; document.getElementById('clientNameInput').value='DevStack UI';">
+        <strong>💻 SaaS Website</strong>
+        UI, Backend & Copy
+      </button>
+    </div>
+
+    <div class="brief-actions">
+      <button class="brief-cancel" onclick="location.reload()">Reset</button>
+      <button class="brief-start" onclick="startProject()">🚀 Kick-off Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── DOWNLOAD / PAYWALL MODAL ── -->
+<div class="modal-overlay" id="downloadModal" style="display:none;">
+    <div class="modal-card">
+        <h2 style="margin-top:0;font-size:24px;color:#fff">⬡ Your Agency Deliverables</h2>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:24px">Your AI agency has finished the project. Review the final high-res assets below.</p>
+        
+        <div class="price-comparison-grid">
+            <div class="price-col aia-col">
+                <div class="price-col-label">AIA Cost</div>
+                <div class="price-col-value" id="modalAia">$0.81</div>
+                <div class="price-col-sub">12 Photos · IEO Report · Revenue Map</div>
+            </div>
+            <div class="price-col ta-col">
+                <div class="price-col-label">Agency Cost</div>
+                <div class="price-col-value strikethrough">$600</div>
+                <div class="price-col-sub">Est. 1 week delivery</div>
+            </div>
+        </div>
+
+        <div class="asset-list" id="assetList">
+            <!-- Populated by JS -->
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:24px">
+            <button class="brief-cancel" style="flex:1" onclick="closeDownload()">Keep Editing</button>
+            <button class="btn-primary" id="finalPayBtn" style="flex:2;background:#f59e0b;color:#111;font-weight:800;border:none;border-radius:12px;cursor:pointer" onclick="confirmDownload()">Pay $24.99 & Download All</button>
+        </div>
+    </div>
+</div>
+
+<script src="demo3.js"></script>
+</body>
+</html>
